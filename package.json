@@ -1,0 +1,23 @@
+{
+  "name": "portfolio-serverless-functions",
+  "version": "1.0.0",
+  "description": "A serverless function to handle all portfolio API calls",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "ntl dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ennanuel/portfolio-sf.git"
+  },
+  "author": "Emmanuel Ezema",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ennanuel/portfolio-sf/issues"
+  },
+  "homepage": "https://github.com/ennanuel/portfolio-sf#readme",
+  "dependencies": {
+    "mongodb": "6.15"
+  }
+}
