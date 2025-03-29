@@ -20,6 +20,8 @@ const handler = async () => {
     } finally {
         await client.close();
 
+        console.log(process.env);
+
         response.headers.append('Access-Control-Allow-Origin', process.env.EZEMA_FRONTEND_URI);
         return response;
     }
