@@ -5,7 +5,7 @@ const getRequestQuery = (url, field) => new URL(url).searchParams.get(field);
 
 const getArtworkFilters = (filter) => {
     if(!filter) return [];
-    return filter.split(" ");
+    return filter.replace(/(^\s|\s$)/ig, "").split(" ");
 };
 
 const convertQueryToNumber = (str, fallback) => {
@@ -41,7 +41,7 @@ const handler = async (req) => {
         const artworks = await artworkCollection.find(query, { limit, skip, projection: { _id: 1, title: 2, categories: 3, images: 4 }}).toArray();
         const artworksCount = await artworkCollection.countDocuments(query);
         const artworkImageIds = artworks.reduce((imageIds, artwork) => [...imageIds, ...artwork.images], []);
-        const artworkCategoryIds = artworks.reduce((categoryIds, artwork) => [...categoryIds, ...artwork.categories], []);
+        const artworkCategoryIds = artworks.reduce((categoryIds, artwork) => [...categoryIds, ...artwork.categories.slice(0, 3)], []);
 
         const artworkImagesArray = await artworkImageCollection.find({ _id: { $in: artworkImageIds } }, { projection: { _id: 1, image: { publicUrl: 2 } } }).toArray();
         const artworkImages = artworkImagesArray.reduce((images, artworkImage) => ({ ...images, [artworkImage._id]: { ...artworkImage } }), {});
@@ -51,11 +51,11 @@ const handler = async (req) => {
 
         const expandedArtworks = artworks.map((artwork) => ({ 
             ...artwork, 
-            images: artwork.images.map((imageId) => artworkImages[imageId]),
-            categories: artwork.categories.map((categoryId) => artworkCategories[categoryId])
+            images: artwork.images.map((imageId) => artworkImages[imageId]),            
+            categories: `${artwork.categories.slice(0, 3).map((categoryId) => artworkCategories[categoryId]?.name).join(', ')}${artwork.categories?.length > 3 ? '...' : ''}`
         }));
 
-        const categoryNames = filter.map((catId) => artworkCategories[catId]);
+        const categoryNames = filter.map((catId) => artworkCategories[catId]?.name);
 
         response = new Response(JSON.stringify({ 
             limit, 
