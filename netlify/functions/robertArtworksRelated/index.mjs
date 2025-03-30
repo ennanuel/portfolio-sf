@@ -3,11 +3,6 @@ import { MongoClient } from "mongodb";
 
 const getRequestQuery = (url, field) => new URL(url).searchParams.get(field);
 
-const getArtworkFilters = (filter) => {
-    if(!filter) return [];
-    return filter.split(" ");
-};
-
 const convertQueryToNumber = (str, fallback) => {
     if(!(str >= 0 && str !== undefined && str !== null)) return fallback;
     return Number(str);
@@ -18,20 +13,13 @@ const handler = async (req, context) => {
     const client = new MongoClient(process.env.MONGODB_URI);
 
     const artworkId = context.params.artwork_id;
-    const filterQuery = getRequestQuery(req.url, 'filter');
     const limitQuery = getRequestQuery(req.url, 'limit');
     const pageQuery = getRequestQuery(req.url, 'page');
 
     try {
-        const filter = getArtworkFilters(filterQuery);
         const limit = convertQueryToNumber(limitQuery, 6);
         const page = convertQueryToNumber(pageQuery, 0);
         const skip = limit * page;
-
-        const query = {
-            _id: { $ne: artworkId },
-            categories: !filter.length ? { $size: 0 } : { $in: filter }
-        };
 
         const database = client.db("projects");
 
@@ -39,10 +27,17 @@ const handler = async (req, context) => {
         const artworkImageCollection = database.collection("robertartworkimages");
         const artworkCategoryCollection = database.collection("robertcategories");
 
+        const artwork = await artworkCollection.findOne({ _id: artworkId });
+
+        const query = {
+            _id: { $ne: artworkId },
+            categories: !artwork.categories.length ? { $size: 0 } : { $in: artwork.categories }
+        };
+
         const artworks = await artworkCollection.find(query, { limit, skip, projection: { _id: 1, title: 2, categories: 3, images: 4 }}).toArray();
         const artworksCount = await artworkCollection.countDocuments(query);
         const artworkImageIds = artworks.reduce((imageIds, artwork) => [...imageIds, ...artwork.images], []);
-        const artworkCategoryIds = artworks.reduce((categoryIds, artwork) => [...categoryIds, ...artwork.categories], []);
+        const artworkCategoryIds = artworks.reduce((categoryIds, artwork) => [...categoryIds, ...artwork.categories.slice(0, 3)], []);
 
         const artworkImagesArray = await artworkImageCollection.find({ _id: { $in: artworkImageIds } }, { projection: { _id: 1, image: { publicUrl: 2 } } }).toArray();
         const artworkImages = artworkImagesArray.reduce((images, artworkImage) => ({ ...images, [artworkImage._id]: { ...artworkImage } }), {});
@@ -53,7 +48,7 @@ const handler = async (req, context) => {
         const expandedArtworks = artworks.map((artwork) => ({ 
             ...artwork, 
             images: artwork.images.map((imageId) => artworkImages[imageId]),
-            categories: artwork.categories.map((categoryId) => artworkCategories[categoryId])
+            categories: `${artwork.categories.slice(0, 3).map((categoryId) => artworkCategories[categoryId]?.name).join(', ')}${artwork.categories?.length > 3 ? '...' : ''}`
         }));
 
         response = new Response(JSON.stringify({ 
